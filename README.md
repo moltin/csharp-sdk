@@ -1,4 +1,4 @@
-# C# SDK
+# C# SDK Alpha
 
 * [Website](http://molt.in)
 * [License](https://github.com/moltin/csharp-sdk/master/LICENSE)
