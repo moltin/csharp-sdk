@@ -45,11 +45,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Authenticate.cs" />
-    <Compile Include="Authenticate\ClientCredentials.cs" />
-    <Compile Include="Request.cs" />
-    <Compile Include="Request\HttpRequest.cs" />
-    <Compile Include="SDK.cs" />
+    <Compile Include="IOAuthProvider.cs" />
+    <Compile Include="OAuthHandler.cs" />
+    <Compile Include="OAuthProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

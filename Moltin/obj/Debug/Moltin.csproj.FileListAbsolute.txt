@@ -1,0 +1,5 @@
+C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\obj\Debug\Moltin.csprojResolveAssemblyReference.cache
+C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\bin\Debug\Moltin.dll
+C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\bin\Debug\Moltin.pdb
+C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\obj\Debug\Moltin.dll
+C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\obj\Debug\Moltin.pdb
