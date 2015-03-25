@@ -13,9 +13,6 @@ namespace Moltin
         private readonly string publicKey;
         private readonly string secretKey;
 
-        private readonly string apiUrl;
-        private readonly string authUrl;
-
         private readonly IOAuthProvider provider;
 
         /// <summary>
@@ -84,9 +81,8 @@ namespace Moltin
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <param name="data">The data to be set to the API.</param>
         /// <returns></returns>
-        public JToken QueryApi(string accessToken, string path, HttpMethod method, string data)
+        public JToken QueryApi(string accessToken, string url, HttpMethod method, string data)
         {
-            var url = this.apiUrl + path;
             var result = "";
 
             using (var client = new WebClient())
@@ -103,7 +99,7 @@ namespace Moltin
                         result = client.UploadString(url, "POST", data);
                         break;
                     default:
-                        result = client.DownloadString(url + path);
+                        result = client.DownloadString(url);
                         break;
                 }
             }
