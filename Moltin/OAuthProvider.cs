@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -6,6 +7,11 @@ namespace Moltin
 {
     public class OAuthProvider : IOAuthProvider
     {
+        /// <summary>
+        /// Normalises the parameters passed.
+        /// </summary>
+        /// <param name="parameters">A dictionary object of parameters to be normalised.</param>
+        /// <returns></returns>
         public string NormalizeParameters(Dictionary<string, string> parameters)
         {
             var sb = new StringBuilder();
@@ -22,6 +28,20 @@ namespace Moltin
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Converts a TimeStamp to the correct DateTime.
+        /// </summary>
+        /// <param name="unixTimeStamp">The TimeStamp that needs converting.</param>
+        /// <returns></returns>
+        public DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        {
+            var dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+
+            dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
+
+            return dtDateTime;
         }
     }
 }
