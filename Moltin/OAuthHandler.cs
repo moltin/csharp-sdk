@@ -1,9 +1,7 @@
-﻿using Moltin.Model;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 
 namespace Moltin
 {
@@ -29,43 +27,72 @@ namespace Moltin
         /// <param name="version">API version which is appended to the base URL to make a full URL.</param>
         /// <param name="publicKey">Your public key.</param>
         /// <param name="secretKey">Your secret key.</param>
-        public OAuthHandler(IOAuthProvider provider, string authUrl, string baseUrl, string version, string publicKey, string secretKey)
+        public OAuthHandler(IOAuthProvider provider, string publicKey, string secretKey)
         {
             this.provider = provider;
 
             this.publicKey = publicKey;
             this.secretKey = secretKey;
-            
-            this.apiUrl = baseUrl + version + "/";
-            this.authUrl = authUrl;
+        }
+
+        /// <summary>
+        /// Get the access token.
+        /// </summary>
+        /// <param name="url">The authorization url.</param>
+        /// <returns></returns>
+        public string GetAccessToken(string url)
+        {
+            var defaults = new Dictionary<string, string>
+            {
+                {"grant_type", "client_credentials"},
+                {"client_id", this.publicKey},
+                {"client_secret", this.secretKey}
+            };
+
+            var normalisedParameters = provider.NormalizeParameters(defaults);
+            var result = "";
+
+            using (var client = new WebClient())
+            {
+                client.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+
+                result = client.UploadString(url, "POST", normalisedParameters);
+            }
+
+            var json = JObject.Parse(result);
+
+            if (json["error"] != null)
+                throw new Exception(json["error"].ToString());
+
+            return json["access_token"].ToString();
         }
 
         /// <summary>
         /// Query the API using GET HttpMethod.
         /// </summary>
-        /// <param name="path">The path to the requested resource.</param>
+        /// <param name="url">The path to the requested resource.</param>
         /// <returns></returns>
-        public JToken QueryApi(string path)
+        public JToken QueryApi(string accessToken, string url)
         {
-            return QueryApi(path, HttpMethod.GET, null);
+            return QueryApi(accessToken, url, HttpMethod.GET, null);
         }
 
         /// <summary>
         /// Query the API using the specified HttpMethod.
         /// </summary>
-        /// <param name="path">The path to the requested resource.</param>
+        /// <param name="url">The path to the requested resource.</param>
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <param name="data">The data to be set to the API.</param>
         /// <returns></returns>
-        public JToken QueryApi(string path, HttpMethod method, string data)
+        public JToken QueryApi(string accessToken, string path, HttpMethod method, string data)
         {
-            var model = GetAccessToken();
             var url = this.apiUrl + path;
             var result = "";
 
             using (var client = new WebClient())
             {
-                client.Headers.Add("Authorization", "Bearer " + model.AccessToken);
+                if (!string.IsNullOrEmpty(accessToken))
+                    client.Headers.Add("Authorization", "Bearer " + accessToken);
 
                 switch (method)
                 {
@@ -82,49 +109,6 @@ namespace Moltin
             }
 
             return JObject.Parse(result);
-        }
-
-        /// <summary>
-        /// TODO: Store access token in cache.
-        /// </summary>
-        /// <returns></returns>
-        private Token GetAccessToken()
-        {
-            var result = Authenticate();
-            var json = JObject.Parse(result);
-
-            var token = json["access_token"].ToString();
-            var expiresTimestamp = int.Parse(json["expires"].ToString());
-            var expires = this.provider.UnixTimeStampToDateTime(expiresTimestamp);
-
-            return new Token()
-            {
-                AccessToken = token,
-                Expires = expires
-            };
-        }
-
-        /// <summary>
-        /// Function to authenticate for the first time.
-        /// </summary>
-        /// <returns>A JSON string with the access token.</returns>
-        public string Authenticate()
-        {
-            var defaults = new Dictionary<string, string>
-            {
-                {"grant_type", "client_credentials"},
-                {"client_id", this.publicKey},
-                {"client_secret", this.secretKey}
-            };
-
-            var normalisedParameters = provider.NormalizeParameters(defaults);
-
-            using (var client = new WebClient())
-            {
-                client.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
-
-                return client.UploadString(authUrl, "POST", normalisedParameters);
-            }
         }
     }
 }

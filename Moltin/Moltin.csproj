@@ -50,7 +50,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IOAuthProvider.cs" />
-    <Compile Include="Model\Token.cs" />
     <Compile Include="OAuthHandler.cs" />
     <Compile Include="OAuthProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
