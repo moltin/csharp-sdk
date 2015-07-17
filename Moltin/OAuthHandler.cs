@@ -1,7 +1,12 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Net;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
 
 namespace Moltin
 {
@@ -13,8 +18,6 @@ namespace Moltin
         private readonly string publicKey;
         private readonly string secretKey;
 
-        private readonly IOAuthProvider provider;
-
         /// <summary>
         /// Handles authencated calls made to the Moltin API.
         /// </summary>
@@ -24,10 +27,8 @@ namespace Moltin
         /// <param name="version">API version which is appended to the base URL to make a full URL.</param>
         /// <param name="publicKey">Your public key.</param>
         /// <param name="secretKey">Your secret key.</param>
-        public OAuthHandler(IOAuthProvider provider, string publicKey, string secretKey)
+        public OAuthHandler(string publicKey, string secretKey)
         {
-            this.provider = provider;
-
             this.publicKey = publicKey;
             this.secretKey = secretKey;
         }
@@ -37,31 +38,36 @@ namespace Moltin
         /// </summary>
         /// <param name="url">The authorization url.</param>
         /// <returns></returns>
-        public string GetAccessToken(string url)
+        public async Task<string> GetAccessTokenAsync(string url)
         {
-            var defaults = new Dictionary<string, string>
+
+            // Create our pairs
+            var pairs = new Dictionary<string, string>
             {
                 {"grant_type", "client_credentials"},
                 {"client_id", this.publicKey},
                 {"client_secret", this.secretKey}
             };
 
-            var normalisedParameters = provider.NormalizeParameters(defaults);
-            var result = "";
+            // Encode our content
+            var data = new FormUrlEncodedContent(pairs);
 
-            using (var client = new WebClient())
+            // Using the HttpClient
+            using (var client = new HttpClient())
             {
-                client.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
 
-                result = client.UploadString(url, "POST", normalisedParameters);
+                //// Clear our headers and set our content type
+                //client.DefaultRequestHeaders.Add("Content-Type", "application/x-www-form-urlencoded");
+
+                // Get our response
+                var response = await client.PostAsync(url, data);
+
+                // Handle our response
+                var result = await HandleResponse(response);
+
+                // Return our access token
+                return result["access_token"].ToString();
             }
-
-            var json = JObject.Parse(result);
-
-            if (json["error"] != null)
-                throw new Exception(json["error"].ToString());
-
-            return json["access_token"].ToString();
         }
 
         /// <summary>
@@ -69,9 +75,9 @@ namespace Moltin
         /// </summary>
         /// <param name="url">The path to the requested resource.</param>
         /// <returns></returns>
-        public JToken QueryApi(string accessToken, string url)
+        public async Task<JToken> QueryApiAsync(string accessToken, string url)
         {
-            return QueryApi(accessToken, url, HttpMethod.GET, null);
+            return await QueryApiAsync(accessToken, url, HttpMethod.GET, null);
         }
 
         /// <summary>
@@ -81,30 +87,88 @@ namespace Moltin
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <param name="data">The data to be set to the API.</param>
         /// <returns></returns>
-        public JToken QueryApi(string accessToken, string url, HttpMethod method, string data)
+        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method, Object data)
         {
-            var result = "";
 
-            using (var client = new WebClient())
+            // Using a new WebClient
+            using (var client = new HttpClient())
             {
-                if (!string.IsNullOrEmpty(accessToken))
-                    client.Headers.Add("Authorization", "Bearer " + accessToken);
 
+                // If we have an access token, apply it to our header
+                if (!string.IsNullOrEmpty(accessToken))
+                    client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
+
+                // Create our response
+                HttpResponseMessage response;
+
+                // Switch method
                 switch (method)
                 {
-                    case HttpMethod.PUT:
-                    case HttpMethod.POST:
-                        client.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
 
-                        result = client.UploadString(url, "POST", data);
+                    // For creating
+                    case HttpMethod.POST:
+
+                        // Post our data
+                        response = await client.PostAsJsonAsync(url, data);
+
+                        // Break out of the switch
                         break;
+
+                    // For Updating
+                    case HttpMethod.PUT:
+
+                        response = await client.PutAsJsonAsync(url, data);
+
+                        // Break out of the switch
+                        break;
+
+                    // For Deleting
+                    case HttpMethod.DELETE:
+
+                        response = await client.DeleteAsync(url);
+
+                        // Break out of the switch
+                        break;
+
+                    // For everything else
                     default:
-                        result = client.DownloadString(url);
+
+                        // For get requests
+                        response = await client.GetAsync(url);
+
+                        // Break out of the switch
                         break;
                 }
+
+                // Get our result
+                var result = await HandleResponse(response);
+
+                // Return our actual result
+                return result["result"];
+            }
+        }
+
+        /// <summary>
+        /// Used to handle any responses
+        /// </summary>
+        /// <param name="response">The HttpResponseMessage</param>
+        /// <returns>A JToken Object</returns>
+        static async Task<JToken> HandleResponse(HttpResponseMessage response)
+        {
+
+            // If we suceed
+            if (response.IsSuccessStatusCode)
+            {
+
+                // Read our results
+                var result = await response.Content.ReadAsStringAsync();
+
+                // Get our resolve
+                return JObject.Parse(result);
             }
 
-            return JObject.Parse(result);
+            // Return nothing if there is an error
+            return null;
         }
     }
 }
