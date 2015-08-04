@@ -1,7 +1,0 @@
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\bin\Release\Moltin.dll
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\bin\Release\Moltin.pdb
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\bin\Release\Newtonsoft.Json.dll
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\bin\Release\Newtonsoft.Json.xml
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\obj\Release\Moltin.csprojResolveAssemblyReference.cache
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\obj\Release\Moltin.dll
-C:\Users\Jaymie\Documents\GitHub\csharp-sdk\Moltin\obj\Release\Moltin.pdb
