@@ -56,17 +56,25 @@ namespace Moltin
             using (var client = new HttpClient())
             {
 
-                //// Clear our headers and set our content type
-                //client.DefaultRequestHeaders.Add("Content-Type", "application/x-www-form-urlencoded");
-
                 // Get our response
                 var response = await client.PostAsync(url, data);
+                
+                // If we suceed
+                if (response.IsSuccessStatusCode)
+                {
 
-                // Handle our response
-                var result = await HandleResponse(response);
+                    // Read our results
+                    var resultString = await response.Content.ReadAsStringAsync();
 
-                // Return our access token
-                return result["access_token"].ToString();
+                    // Get our resolve
+                    var jsonObject = JObject.Parse(resultString);
+
+                    // Return our result
+                    return jsonObject["access_token"].ToString();
+                }
+
+                // Return null if we get this far
+                return null;
             }
         }
 
@@ -140,11 +148,8 @@ namespace Moltin
                         break;
                 }
 
-                // Get our result
-                var result = await HandleResponse(response);
-
-                // Return our actual result
-                return result["result"];
+                // Return our response
+                return await HandleResponse(response);
             }
         }
 
@@ -161,10 +166,13 @@ namespace Moltin
             {
 
                 // Read our results
-                var result = await response.Content.ReadAsStringAsync();
+                var resultString = await response.Content.ReadAsStringAsync();
 
                 // Get our resolve
-                return JObject.Parse(result);
+                var jsonObject = JObject.Parse(resultString);
+
+                // Return our result
+                return jsonObject["result"];
             }
 
             // Return nothing if there is an error
