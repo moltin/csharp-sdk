@@ -81,16 +81,30 @@ namespace Moltin
         /// <summary>
         /// Query the API using GET HttpMethod.
         /// </summary>
+        /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <returns></returns>
         public async Task<JToken> QueryApiAsync(string accessToken, string url)
         {
-            return await QueryApiAsync(accessToken, url, HttpMethod.GET, null);
+            return await QueryApiAsync(accessToken, url, HttpMethod.GET);
+        }
+
+        /// <summary>
+        /// Query the API without passing data.
+        /// </summary>
+        /// <param name="accessToken">The access token used to autenticate the request.</param>
+        /// <param name="url">The path to the requested resource.</param>
+        /// <param name="method">The HttpMethod to use for the call.</param>
+        /// <returns></returns>
+        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method)
+        {
+            return await QueryApiAsync(accessToken, url, method, null);
         }
 
         /// <summary>
         /// Query the API using the specified HttpMethod.
         /// </summary>
+        /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <param name="data">The data to be set to the API.</param>
