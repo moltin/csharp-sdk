@@ -1,10 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -189,8 +186,8 @@ namespace Moltin
                 return jsonObject["result"];
             }
 
-            // Return nothing if there is an error
-            return null;
+            // Throw an error
+            throw new HttpException((int)response.StatusCode, response.ReasonPhrase);
         }
     }
 }

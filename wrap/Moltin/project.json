@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0-*",
+  "frameworks": {
+    "net45": {
+      "wrappedProject": "../../Moltin/Moltin.csproj",
+      "bin": {
+        "assembly": "../../Moltin/obj/{configuration}/Moltin.dll",
+        "pdb": "../../Moltin/obj/{configuration}/Moltin.pdb"
+      },
+      "dependencies": {
+        "Microsoft.AspNet.WebApi.Client": "5.2.3",
+        "Newtonsoft.Json": "7.0.1"
+      }
+    }
+  }
+}
