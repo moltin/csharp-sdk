@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -109,6 +110,14 @@ namespace Moltin
         public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method, Object data)
         {
 
+            // If we don't have a access token, throw an error
+            if (string.IsNullOrEmpty(accessToken))
+                throw new ArgumentNullException("accessToken");
+
+            // If we don't have a URL, throw an error
+            if (string.IsNullOrEmpty(url))
+                throw new ArgumentNullException("url");
+
             // Using a new WebClient
             using (var client = new HttpClient())
             {
@@ -172,22 +181,17 @@ namespace Moltin
         static async Task<JToken> HandleResponse(HttpResponseMessage response)
         {
 
-            // If we suceed
-            if (response.IsSuccessStatusCode)
-            {
+            // Throw an error if not a success code
+            response.EnsureSuccessStatusCode();
 
-                // Read our results
-                var resultString = await response.Content.ReadAsStringAsync();
+            // Read our results
+            var resultString = await response.Content.ReadAsStringAsync();
 
-                // Get our resolve
-                var jsonObject = JObject.Parse(resultString);
+            // Get our resolve
+            var jsonObject = JObject.Parse(resultString);
 
-                // Return our result
-                return jsonObject["result"];
-            }
-
-            // Throw an error
-            throw new HttpException((int)response.StatusCode, response.ReasonPhrase);
+            // Return our result
+            return jsonObject["result"];
         }
     }
 }
