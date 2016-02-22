@@ -1,10 +1,13 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Moltin.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace Moltin
 {
@@ -15,6 +18,7 @@ namespace Moltin
         // Private variables
         private readonly string publicKey;
         private readonly string secretKey;
+        private ModelFactory factory;
 
         /// <summary>
         /// Handles authencated calls made to the Moltin API.
@@ -29,6 +33,16 @@ namespace Moltin
         {
             this.publicKey = publicKey;
             this.secretKey = secretKey;
+            this.factory = new ModelFactory();
+            
+            // Configure our JSON output globally
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                ContractResolver = new CamelCasePropertyNamesContractResolver(),
+                Formatting = Formatting.Indented,
+                ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
+                PreserveReferencesHandling = Newtonsoft.Json.PreserveReferencesHandling.None
+            };
         }
 
         /// <summary>
@@ -118,6 +132,9 @@ namespace Moltin
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentNullException("url");
 
+            // Factorize our data
+            var model = Factorize(data);
+
             // Using a new WebClient
             using (var client = new HttpClient())
             {
@@ -137,7 +154,7 @@ namespace Moltin
                     case HttpMethod.POST:
 
                         // Post our data
-                        response = await client.PostAsJsonAsync(url, data);
+                        response = await client.PostAsJsonAsync(url, JObject.FromObject(model));
 
                         // Break out of the switch
                         break;
@@ -145,7 +162,7 @@ namespace Moltin
                     // For Updating
                     case HttpMethod.PUT:
 
-                        response = await client.PutAsJsonAsync(url, data);
+                        response = await client.PutAsJsonAsync(url, JObject.FromObject(model));
 
                         // Break out of the switch
                         break;
@@ -178,11 +195,8 @@ namespace Moltin
         /// </summary>
         /// <param name="response">The HttpResponseMessage</param>
         /// <returns>A JToken Object</returns>
-        static async Task<JToken> HandleResponse(HttpResponseMessage response)
+        private async Task<JToken> HandleResponse(HttpResponseMessage response)
         {
-
-            // Throw an error if not a success code
-            response.EnsureSuccessStatusCode();
 
             // Read our results
             var resultString = await response.Content.ReadAsStringAsync();
@@ -190,8 +204,63 @@ namespace Moltin
             // Get our resolve
             var jsonObject = JObject.Parse(resultString);
 
+            // Get our errors
+            var errors = jsonObject["errors"] as JObject;
+
+            // Process any errors
+            ProcessErrors(errors);
+
+            // If no errors were caught, ensure that the status code is 200
+            response.EnsureSuccessStatusCode();
+
             // Return our result
-            return jsonObject["result"];
+            return jsonObject;
+        }
+
+        private void ProcessErrors(JObject errors)
+        {
+
+            // If we have any errors
+            if (errors != null)
+            {
+
+                // Create our string builder
+                var sb = new StringBuilder();
+
+                // Loop through our errors
+                foreach(var error in errors)
+                {
+
+                    // Remove double quotes and square brackets from our value
+                    var value = Regex.Replace(error.Value.ToString(), @"[\[\]""]+", "");
+
+                    // Create our first item
+                    sb.Append(error.Key + ": " + value);
+                }
+
+                // Throw an error
+                throw new Exception(sb.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Factorizes the data if neccessary, to match the expected definitions for moltin
+        /// </summary>
+        /// <param name="data">The object that has been sent to the API</param>
+        /// <returns></returns>
+        private Object Factorize(Object data)
+        {
+
+            // If the data that has been sent is the checkout model
+            if (data is ICheckoutBindingModel)
+            {
+
+                // Factorize our data
+                return this.factory.Create(data as ICheckoutBindingModel);
+            }
+
+            // Fallback, return the original object (can be null)
+            return data;
         }
     }
 }
