@@ -4,7 +4,10 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -68,25 +71,38 @@ namespace Moltin
             using (var client = new HttpClient())
             {
 
-                // Get our response
-                var response = await client.PostAsync(url, data);
-                
-                // If we suceed
-                if (response.IsSuccessStatusCode)
+            // Set the security protocol
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+            try
                 {
 
-                    // Read our results
-                    var resultString = await response.Content.ReadAsStringAsync();
+                    // Get our response
+                    var response = await client.PostAsync(url, data);
 
-                    // Get our resolve
-                    var jsonObject = JObject.Parse(resultString);
+                    // If we suceed
+                    if (response.IsSuccessStatusCode)
+                    {
 
-                    // Return our result
-                    return jsonObject["access_token"].ToString();
+                        // Read our results
+                        var resultString = await response.Content.ReadAsStringAsync();
+
+                        // Get our resolve
+                        var jsonObject = JObject.Parse(resultString);
+
+                        // Return our result
+                        return jsonObject["access_token"].ToString();
+                    }
+
+                    // Return null if we get this far
+                    return null;
+
+                } catch
+                {
+
+                    // Throw an error
+                    throw new Exception("Failed to get your access token");
                 }
-
-                // Return null if we get this far
-                return null;
             }
         }
 
