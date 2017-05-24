@@ -1,6 +1,6 @@
 # C# SDK Alpha
 
-* [Website](http://molt.in)
+* [Website](https://www.moltin.com)
 * [License](https://github.com/moltin/csharp-sdk/master/LICENSE)
 * Version: dev
 
@@ -21,15 +21,15 @@ Coming soon
 
 ## Contributing
 
-Please see [CONTRIBUTING](https://github.com/moltin/charp-sdk/blob/master/CONTRIBUTING.md) for details.
+Please see [CONTRIBUTING](https://github.com/moltin/csharp-sdk/blob/master/CONTRIBUTING.md) for details.
 
 
 ## Credits
 
 - [Moltin](https://github.com/moltin)
-- [All Contributors](https://github.com/moltin/charp-sdk/contributors)
+- [All Contributors](https://github.com/moltin/csharp-sdk/contributors)
 
 
 ## License
 
-Please see [License File](https://github.com/moltin/charp-sdk/blob/master/LICENSE) for more information.
+Please see [License File](https://github.com/moltin/csharp-sdk/blob/master/LICENSE) for more information.
