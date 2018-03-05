@@ -23,25 +23,20 @@ namespace Moltin
     public class OAuthHandler
     {
         // Private variables
-        private readonly string publicKey;
-
-        private readonly string secretKey;
-        private readonly ModelFactory factory;
+        private readonly string _publicKey;
+        private readonly string _secretKey;
+        private readonly ModelFactory _factory;
 
         /// <summary>
         ///     Handles authencated calls made to the Moltin API.
         /// </summary>
-        /// <param name="provider">A provider with generic functions that relate to OAuth.</param>
-        /// <param name="authUrl">URL used to get the access token.</param>
-        /// <param name="baseUrl">URL used for all other API requests.</param>
-        /// <param name="version">API version which is appended to the base URL to make a full URL.</param>
         /// <param name="publicKey">Your public key.</param>
         /// <param name="secretKey">Your secret key.</param>
         public OAuthHandler(string publicKey, string secretKey)
         {
-            this.publicKey = publicKey;
-            this.secretKey = secretKey;
-            factory = new ModelFactory();
+            _publicKey = publicKey;
+            _secretKey = secretKey;
+            _factory = new ModelFactory();
 
             // Configure our JSON output globally
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
@@ -64,8 +59,8 @@ namespace Moltin
             var pairs = new Dictionary<string, string>
             {
                 {"grant_type", "client_credentials"},
-                {"client_id", publicKey},
-                {"client_secret", secretKey}
+                {"client_id", _publicKey},
+                {"client_secret", _secretKey}
             };
 
             // Encode our content
@@ -82,21 +77,19 @@ namespace Moltin
                     // Get our response
                     var response = await client.PostAsync(url, data);
 
-                    // If we suceed
-                    if (response.IsSuccessStatusCode)
-                    {
-                        // Read our results
-                        var resultString = await response.Content.ReadAsStringAsync();
+                    // Return null if we have failed
+                    if (!response.IsSuccessStatusCode) return null;
 
-                        // Get our resolve
-                        var jsonObject = JObject.Parse(resultString);
+                    // Read our results
+                    var resultString = await response.Content.ReadAsStringAsync();
 
-                        // Return our result
-                        return jsonObject["access_token"].ToString();
-                    }
+                    // Get our resolve
+                    var jsonObject = JObject.Parse(resultString);
+
+                    // Return our result
+                    return jsonObject["access_token"].ToString();
 
                     // Return null if we get this far
-                    return null;
                 }
                 catch
                 {
@@ -134,10 +127,10 @@ namespace Moltin
         public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method, object data)
         {
             // If we don't have a access token, throw an error
-            if (string.IsNullOrEmpty(accessToken)) throw new ArgumentNullException("accessToken");
+            if (string.IsNullOrEmpty(accessToken)) throw new ArgumentNullException(nameof(accessToken));
 
             // If we don't have a URL, throw an error
-            if (string.IsNullOrEmpty(url)) throw new ArgumentNullException("url");
+            if (string.IsNullOrEmpty(url)) throw new ArgumentNullException(nameof(url));
 
             // Factorize our data
             var model = Factorize(data);
@@ -220,27 +213,26 @@ namespace Moltin
             return jsonObject;
         }
 
-        private void ProcessErrors(JObject errors)
+        private static void ProcessErrors(JObject errors)
         {
-            // If we have any errors
-            if (errors != null)
+            // Exit if we have no errors
+            if (errors == null) return;
+
+            // Create our string builder
+            var sb = new StringBuilder();
+
+            // Loop through our errors
+            foreach (var error in errors)
             {
-                // Create our string builder
-                var sb = new StringBuilder();
+                // Remove double quotes and square brackets from our value
+                var value = Regex.Replace(error.Value.ToString(), @"[\[\]""]+", "");
 
-                // Loop through our errors
-                foreach (var error in errors)
-                {
-                    // Remove double quotes and square brackets from our value
-                    var value = Regex.Replace(error.Value.ToString(), @"[\[\]""]+", "");
-
-                    // Create our first item
-                    sb.Append(error.Key + ": " + value);
-                }
-
-                // Throw an error
-                throw new Exception(sb.ToString());
+                // Create our first item
+                sb.Append(error.Key + ": " + value);
             }
+
+            // Throw an error
+            throw new Exception(sb.ToString());
         }
 
         /// <summary>
@@ -251,7 +243,7 @@ namespace Moltin
         private object Factorize(object data)
         {
             // If the data that has been sent is the checkout model
-            if (data is ICheckoutBindingModel) return factory.Create(data as ICheckoutBindingModel);
+            if (data is ICheckoutBindingModel model) return _factory.Create(model);
 
             // Fallback, return the original object (can be null)
             return data;
