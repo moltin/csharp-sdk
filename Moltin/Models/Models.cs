@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Moltin.Models
 {
@@ -42,13 +42,9 @@ namespace Moltin.Models
         [Required] public string Country { get; set; }
     }
 
-    [JsonConverter(typeof(CartModifierSerializer))]
-    public class MoltinModifierModel
+    [JsonConverter(typeof(CartModifierSerializer))] public class MoltinModifierModel
     {
-        public MoltinModifierModel()
-        {
-            Values = new Dictionary<string, string>();
-        }
+        public MoltinModifierModel() => Values = new Dictionary<string, string>();
 
         public Dictionary<string, string> Values { get; set; }
     }
@@ -77,52 +73,49 @@ namespace Moltin.Models
             };
         }
 
-        public override bool CanConvert(Type objectType)
-        {
-            return typeof(MoltinModifierModel).IsAssignableFrom(objectType);
-        }
+        public override bool CanConvert(Type objectType) => typeof(MoltinModifierModel).IsAssignableFrom(objectType);
     }
 
     #region Private
 
     internal class MoltinCheckoutBothAddressesBindingModel : IMoltinCheckoutBindingModel
     {
+        public string Ship_to { get; set; }
+        public string Bill_to { get; set; }
         public string Cart_id { get; set; }
         public string Gateway { get; set; }
         public string Shipping { get; set; }
         public MoltinCustomerBindingModel Customer { get; set; }
-        public string Ship_to { get; set; }
-        public string Bill_to { get; set; }
     }
 
     internal class MoltinCheckoutShippingAddressOnlyBindingModel : IMoltinCheckoutBindingModel
     {
+        public string Ship_to { get; set; }
+        public MoltinAddressBindingModel Bill_to { get; set; }
         public string Cart_id { get; set; }
         public string Gateway { get; set; }
         public string Shipping { get; set; }
         public MoltinCustomerBindingModel Customer { get; set; }
-        public string Ship_to { get; set; }
-        public MoltinAddressBindingModel Bill_to { get; set; }
     }
 
     internal class MoltinCheckoutBillingAddressOnlyBindingModel : IMoltinCheckoutBindingModel
     {
+        public MoltinAddressBindingModel Ship_to { get; set; }
+        public string Bill_to { get; set; }
         public string Cart_id { get; set; }
         public string Gateway { get; set; }
         public string Shipping { get; set; }
         public MoltinCustomerBindingModel Customer { get; set; }
-        public MoltinAddressBindingModel Ship_to { get; set; }
-        public string Bill_to { get; set; }
     }
 
     internal class MoltinCheckoutBindingModel : IMoltinCheckoutBindingModel
     {
+        public MoltinAddressBindingModel Ship_to { get; set; }
+        public MoltinAddressBindingModel Bill_to { get; set; }
         public string Cart_id { get; set; }
         public string Gateway { get; set; }
         public string Shipping { get; set; }
         public MoltinCustomerBindingModel Customer { get; set; }
-        public MoltinAddressBindingModel Ship_to { get; set; }
-        public MoltinAddressBindingModel Bill_to { get; set; }
     }
 
     internal class MoltinCustomerBindingModel
@@ -148,5 +141,5 @@ namespace Moltin.Models
         public string Country { get; set; }
     }
 
-    #endregion  
+    #endregion
 }

@@ -1,6 +1,6 @@
 ﻿namespace Moltin.Models
 {
-    interface IMoltinCheckoutBindingModel
+    internal interface IMoltinCheckoutBindingModel
     {
         string Cart_id { get; set; }
         string Gateway { get; set; }
@@ -8,7 +8,7 @@
         MoltinCustomerBindingModel Customer { get; set; }
     }
 
-    interface ICheckoutBindingModel
+    internal interface ICheckoutBindingModel
     {
         string CartId { get; set; }
         string Gateway { get; set; }
@@ -18,7 +18,7 @@
         AddressBindingModel BillTo { get; set; }
     }
 
-    interface ICustomerBindingModel
+    internal interface ICustomerBindingModel
     {
         string Id { get; set; }
         string FirstName { get; set; }
@@ -26,7 +26,7 @@
         string Email { get; set; }
     }
 
-    interface IAddressBindingModel
+    internal interface IAddressBindingModel
     {
         string Id { get; set; }
         string FirstName { get; set; }

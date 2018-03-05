@@ -1,30 +1,35 @@
-﻿using Moltin.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Moltin.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 
 namespace Moltin
 {
-    public enum HttpMethod { GET, POST, PUT, DELETE }
+    public enum HttpMethod
+    {
+        GET,
+        POST,
+        PUT,
+        DELETE
+    }
 
     public class OAuthHandler
     {
         // Private variables
         private readonly string publicKey;
+
         private readonly string secretKey;
-        private ModelFactory factory;
+        private readonly ModelFactory factory;
 
         /// <summary>
-        /// Handles authencated calls made to the Moltin API.
+        ///     Handles authencated calls made to the Moltin API.
         /// </summary>
         /// <param name="provider">A provider with generic functions that relate to OAuth.</param>
         /// <param name="authUrl">URL used to get the access token.</param>
@@ -36,32 +41,31 @@ namespace Moltin
         {
             this.publicKey = publicKey;
             this.secretKey = secretKey;
-            this.factory = new ModelFactory();
-            
+            factory = new ModelFactory();
+
             // Configure our JSON output globally
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
                 ContractResolver = new CamelCasePropertyNamesContractResolver(),
                 Formatting = Formatting.Indented,
-                ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
-                PreserveReferencesHandling = Newtonsoft.Json.PreserveReferencesHandling.None
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                PreserveReferencesHandling = PreserveReferencesHandling.None
             };
         }
 
         /// <summary>
-        /// Get the access token.
+        ///     Get the access token.
         /// </summary>
         /// <param name="url">The authorization url.</param>
         /// <returns></returns>
         public async Task<string> GetAccessTokenAsync(string url)
         {
-
             // Create our pairs
             var pairs = new Dictionary<string, string>
             {
                 {"grant_type", "client_credentials"},
-                {"client_id", this.publicKey},
-                {"client_secret", this.secretKey}
+                {"client_id", publicKey},
+                {"client_secret", secretKey}
             };
 
             // Encode our content
@@ -70,20 +74,17 @@ namespace Moltin
             // Using the HttpClient
             using (var client = new HttpClient())
             {
+                // Set the security protocol
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-            // Set the security protocol
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-            try
+                try
                 {
-
                     // Get our response
                     var response = await client.PostAsync(url, data);
 
                     // If we suceed
                     if (response.IsSuccessStatusCode)
                     {
-
                         // Read our results
                         var resultString = await response.Content.ReadAsStringAsync();
 
@@ -96,10 +97,9 @@ namespace Moltin
 
                     // Return null if we get this far
                     return null;
-
-                } catch
+                }
+                catch
                 {
-
                     // Throw an error
                     throw new Exception("Failed to get your access token");
                 }
@@ -107,46 +107,37 @@ namespace Moltin
         }
 
         /// <summary>
-        /// Query the API using GET HttpMethod.
+        ///     Query the API using GET HttpMethod.
         /// </summary>
         /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <returns></returns>
-        public async Task<JToken> QueryApiAsync(string accessToken, string url)
-        {
-            return await QueryApiAsync(accessToken, url, HttpMethod.GET);
-        }
+        public async Task<JToken> QueryApiAsync(string accessToken, string url) => await QueryApiAsync(accessToken, url, HttpMethod.GET);
 
         /// <summary>
-        /// Query the API without passing data.
+        ///     Query the API without passing data.
         /// </summary>
         /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <returns></returns>
-        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method)
-        {
-            return await QueryApiAsync(accessToken, url, method, null);
-        }
+        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method) => await QueryApiAsync(accessToken, url, method, null);
 
         /// <summary>
-        /// Query the API using the specified HttpMethod.
+        ///     Query the API using the specified HttpMethod.
         /// </summary>
         /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <param name="data">The data to be set to the API.</param>
         /// <returns></returns>
-        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method, Object data)
+        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method, object data)
         {
-
             // If we don't have a access token, throw an error
-            if (string.IsNullOrEmpty(accessToken))
-                throw new ArgumentNullException("accessToken");
+            if (string.IsNullOrEmpty(accessToken)) throw new ArgumentNullException("accessToken");
 
             // If we don't have a URL, throw an error
-            if (string.IsNullOrEmpty(url))
-                throw new ArgumentNullException("url");
+            if (string.IsNullOrEmpty(url)) throw new ArgumentNullException("url");
 
             // Factorize our data
             var model = Factorize(data);
@@ -154,10 +145,8 @@ namespace Moltin
             // Using a new WebClient
             using (var client = new HttpClient())
             {
-
                 // If we have an access token, apply it to our header
-                if (!string.IsNullOrEmpty(accessToken))
-                    client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
+                if (!string.IsNullOrEmpty(accessToken)) client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
 
                 // Create our response
                 HttpResponseMessage response;
@@ -165,7 +154,6 @@ namespace Moltin
                 // Switch method
                 switch (method)
                 {
-
                     // For creating
                     case HttpMethod.POST:
 
@@ -207,13 +195,12 @@ namespace Moltin
         }
 
         /// <summary>
-        /// Used to handle any responses
+        ///     Used to handle any responses
         /// </summary>
         /// <param name="response">The HttpResponseMessage</param>
         /// <returns>A JToken Object</returns>
         private async Task<JToken> HandleResponse(HttpResponseMessage response)
         {
-
             // Read our results
             var resultString = await response.Content.ReadAsStringAsync();
 
@@ -235,18 +222,15 @@ namespace Moltin
 
         private void ProcessErrors(JObject errors)
         {
-
             // If we have any errors
             if (errors != null)
             {
-
                 // Create our string builder
                 var sb = new StringBuilder();
 
                 // Loop through our errors
-                foreach(var error in errors)
+                foreach (var error in errors)
                 {
-
                     // Remove double quotes and square brackets from our value
                     var value = Regex.Replace(error.Value.ToString(), @"[\[\]""]+", "");
 
@@ -260,20 +244,14 @@ namespace Moltin
         }
 
         /// <summary>
-        /// Factorizes the data if neccessary, to match the expected definitions for moltin
+        ///     Factorizes the data if neccessary, to match the expected definitions for moltin
         /// </summary>
         /// <param name="data">The object that has been sent to the API</param>
         /// <returns></returns>
-        private Object Factorize(Object data)
+        private object Factorize(object data)
         {
-
             // If the data that has been sent is the checkout model
-            if (data is ICheckoutBindingModel)
-            {
-
-                // Factorize our data
-                return this.factory.Create(data as ICheckoutBindingModel);
-            }
+            if (data is ICheckoutBindingModel) return factory.Create(data as ICheckoutBindingModel);
 
             // Fallback, return the original object (can be null)
             return data;
