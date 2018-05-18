@@ -46,7 +46,7 @@ namespace Moltin
         /// </summary>
         /// <param name="publicKey">Your public key.</param>
         /// <param name="secretKey">Your secret key.</param>
-        /// <param name="apiBaseUrl"></param>
+        /// <param name="authUrl"></param>
         public OAuthHandler(string publicKey, string secretKey, string authUrl = "https://api.molt.in/oauth/access_token")
         {
             _publicKey = publicKey;

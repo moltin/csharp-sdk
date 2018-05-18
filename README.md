@@ -17,114 +17,176 @@ using Moltin;
 
 ## Usage
 
-There are a number of ways to utilize this SDK, an example would be to create a BaseApiController which exposes some properties and methods. It could look something like this:
+There are a number of ways to utilize this SDK, I believe the best way is to create a provider (which can be injected into controllers using a DI solution like autofac):
 
 ``` c#
-/// <summary>
-/// Our base controller for setting up global access to moltin api
-/// </summary>
-public class BaseController : ApiController
+public class MoltinProvider
 {
-	// Private properties
-	private OAuthHandler oauthHandler;
-	private ModelFactory factory;
-	private string publicKey;
-	private string secretKey;
+    private readonly OAuthHandler _authHandler;
+    private readonly string _moltinUrl;
 
-	// Public propertiers
-	public string ApiUrl { get; private set; }
-	public OAuthHandler OAuthHandler { get { return this.oauthHandler ?? (this.oauthHandler = new OAuthHandler(publicKey, secretKey)); } }
-	public ModelFactory Factory { get { return this.factory ?? (this.factory = new ModelFactory()); } }
+    public MoltinProvider(IConfig config)
+    {
+        var publicKey = config.MoltinPublicKey;
+        var secretKey = config.MoltinSecretKey;
+        var authUrl = config.MoltinAuthUrl;
 
-	/// <summary>
-	/// Default constructor
-	/// </summary>
-	public BaseController()
-	{
-		// Get our private variables from our configuration file
-		var baseUrl = ConfigurationManager.AppSettings["ApiBaseUrl"].ToString();
-		var version = ConfigurationManager.AppSettings["ApiVersion"].ToString();
+        _authHandler = new OAuthHandler(publicKey, secretKey, authUrl);
+        _moltinUrl = config.MoltinBaseUrl + config.MoltinVersion + "/";
+    }
 
-		// Set our keys up
-		this.publicKey = ConfigurationManager.AppSettings["MoltinApiKey"].ToString();
-		this.secretKey = ConfigurationManager.AppSettings["MoltinSecretKey"].ToString();
+    public async Task<JToken> Get(string path) =>
+        await _authHandler.QueryApiAsync(_moltinUrl + path);
 
-		// Create our Urls and AccessToken
-		this.ApiUrl = baseUrl + version + "/";
-	}
+    public async Task<JToken> Post(string path, object data) =>
+        await _authHandler.QueryApiAsync(_moltinUrl + path, HttpMethod.POST, data);
 
-	/// <summary>
-	/// Gets the access token
-	/// </summary>
-	/// <param name="authUrl">The authorisation url</param>
-	/// <returns>A string representing the access token</returns>
-	public async Task<string> GetAccessToken()
-	{
+    public async Task<JToken> Put(string path, object data) =>
+        await _authHandler.QueryApiAsync(_moltinUrl + path, HttpMethod.PUT, data);
 
-		// Authorization URL
-		var authUrl = ConfigurationManager.AppSettings["ApiAuthUrl"].ToString();
-
-		// Create our cache
-		var cache = MemoryCache.Default;
-		var policy = new CacheItemPolicy { AbsoluteExpiration = DateTimeOffset.Now.AddMinutes(55) };
-		var accessToken = (string)cache.Get("AccessToken");
-
-		// If we have no cached access token
-		if (!string.IsNullOrEmpty(accessToken))
-			return accessToken;
-
-		// Get our access token
-		accessToken = await this.OAuthHandler.GetAccessTokenAsync(authUrl);
-
-		// Add the token to the cache
-		cache.Add(new CacheItem("AccessToken", accessToken), policy);
-
-		// Return our access token
-		return accessToken;
-	}
+    public async Task<JToken> Delete(string path) =>
+        await _authHandler.QueryApiAsync(_moltinUrl + path, HttpMethod.DELETE);
 }
 ```
 
-In your other controllers, you could then do this:
+Now you are able to use the provider in your controllers like this:
 
 ``` c#
 [Authorize]
-[RoutePrefix("api/carts")]
-public class CartsController : BaseController
+[RoutePrefix("carts")]
+public class CartsController : ApiController
 {
-	/// <summary>
-	/// Gets a list of carts from the Moltin API
-	/// </summary>
-	/// <returns>A list of carts</returns>
-	[HttpGet]
-	[Route("")]
-	public async Task<IHttpActionResult> Get()
-	{
-		return Ok(await this.OAuthHandler.QueryApiAsync(await this.GetAccessToken(), this.ApiUrl + "carts"));
-	}
+    private readonly MoltinProvider _moltinProvider;
+    public CartsController(MoltinProvider moltinProvider) => _moltinProvider = moltinProvider;
 
-	/// <summary>
-	/// Inserts an item into the cart
-	/// </summary>
-	/// <param name="model">The CartItem model containing the item id and quantity</param>
-	/// <returns></returns>
-	[HttpPost]
-	[Route("insert")]
-	public async Task<IHttpActionResult> Insert(CartItemBindingModel model)
-	{
+    /// <summary>
+    ///     Gets a list of carts from the Moltin API
+    /// </summary>
+    /// <returns>A list of carts</returns>
+    [HttpGet]
+    [Route("")]
+    public async Task<IHttpActionResult> Get()
+    {
+        // Get our models
+        var models = await _moltinProvider.Get("carts");
 
-		// If our model is invalid, return the errors
-		if (!ModelState.IsValid)
-			return BadRequest(ModelState);
+        // Return our result
+        return Ok(models.SelectToken("result"));
+    }
 
-		// Perform our post
-		await this.OAuthHandler.QueryApiAsync(await this.GetAccessToken(), this.ApiUrl + "carts", Moltin.HttpMethod.POST, model);
+    /// <summary>
+    ///     Gets aa item from the cart based on it's id
+    /// </summary>
+    /// <param name="cartId">The id of the cart</param>
+    /// <returns>A list of carts</returns>
+    [HttpGet]
+    [Route("")]
+    public async Task<IHttpActionResult> Get(string cartId)
+    {
+        // Get our model
+        var model = await _moltinProvider.Get("carts/" + cartId);
 
-		// Return Ok
-		return Ok();
-	}
+        // Return our result
+        return Ok(model.SelectToken("result"));
+    }
+
+    /// <summary>
+    ///     Checks if an item is in the cart.
+    /// </summary>
+    /// <param name="cartId">The id of the cart</param>
+    /// <param name="itemId">The id of the item to check</param>
+    /// <returns>A boolean value</returns>
+    [HttpGet]
+    [Route("incart")]
+    public async Task<IHttpActionResult> InCart(string cartId, string itemId)
+    {
+        var model = await _moltinProvider.Get("carts/" + cartId + "/has/" + itemId);
+
+        // Return our result
+        return Ok(model.SelectToken("result"));
+    }
+
+    /// <summary>
+    ///     Creates the cart an insert the item into it.
+    /// </summary>
+    /// <param name="model">The CartItem model containing the item id and quantity</param>
+    /// <returns></returns>
+    [HttpPost]
+    [Route("")]
+    public async Task<IHttpActionResult> Create(CartItemBindingModel model)
+    {
+        // If our model is invalid, return the errors
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        // If we don't have a cart id, create one
+        if (string.IsNullOrEmpty(model.CartId)) model.CartId = Guid.NewGuid().ToString().Replace(" - ", "");
+
+        // Get our response
+        var response = await _moltinProvider.Post("carts/" + model.CartId, model);
+
+        // Return Ok
+        return Ok(response.SelectToken("result"));
+    }
+
+    [HttpPost]
+    [Route("checkout")]
+    public async Task<IHttpActionResult> Checkout(CheckoutBindingModel model)
+    {
+        // If our model is invalid, return the errors
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        // Get our response
+        var response = await _moltinProvider.Post("carts/" + model.CartId + "/checkout", model);
+
+        // Return Ok
+        return Ok(response.SelectToken("result"));
+    }
+
+    /// <summary>
+    ///     Updates the item in the cart
+    /// </summary>
+    /// <param name="model">The CartItem model containing the item id and quantity</param>
+    /// <returns></returns>
+    [HttpPut]
+    [Route("")]
+    public async Task<IHttpActionResult> Update(CartItemBindingModel model)
+    {
+        // If our model is invalid, return the errors
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        // Get our response
+        var response = await _moltinProvider.Put("carts/" + model.CartId + "/item/" + model.Id, model);
+
+        // Return Ok
+        return Ok(response.SelectToken("result"));
+    }
+
+    /// <summary>
+    ///     Deletes an item from the cart
+    /// </summary>
+    /// <param name="cartId">The cart id</param>
+    /// <param name="itemId">The id of the item to delete</param>
+    /// <returns></returns>
+    [HttpDelete]
+    [Route("")]
+    public async Task<IHttpActionResult> Delete(string cartId, string itemId)
+    {
+        // Get our response
+        var response = await _moltinProvider.Delete("carts/" + cartId + "/item/" + itemId);
+
+        // Return Ok
+        return Ok(response.SelectToken("result"));
+    }
 }
 ```
+
+It is worth noting that you do not need to worry about authentication; the SDK will take care of getting your access token and caching it for 55 minutes (so that each request is not authenticating). If you need to perform a request without using the access token, there is an optional parameter on the `OAuthHandler.QueryApi` method:
+
+``` c#
+bool requiresAuthentication = true
+```
+
+Setting this to false will disable the Authentication header for that request.
 
 ## Contributing
 
