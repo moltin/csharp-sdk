@@ -3,7 +3,7 @@
     /// <summary>
     ///     Factory classes for factorizing models into moltin models
     /// </summary>
-    internal class ModelFactory
+    internal static class ModelFactory
     {
         /// <summary>
         ///     Creates the moltin specific checkout model
@@ -11,7 +11,7 @@
         /// <param name="model">The default c# request model</param>
         /// <param name="output">The output model</param>
         /// <returns></returns>
-        public IMoltinCheckoutBindingModel Create(ICheckoutBindingModel model)
+        public static IMoltinCheckoutBindingModel Create(ICheckoutBindingModel model)
         {
             // Get the billing and shipping ids
             var billingId = model.BillTo.Id;
@@ -74,7 +74,7 @@
         /// </summary>
         /// <param name="model">The default c# request model</param>
         /// <returns></returns>
-        public MoltinCustomerBindingModel Create(ICustomerBindingModel model) => new MoltinCustomerBindingModel
+        public static MoltinCustomerBindingModel Create(ICustomerBindingModel model) => new MoltinCustomerBindingModel
         {
             Id = model.Id,
             First_name = model.FirstName,
@@ -87,7 +87,7 @@
         /// </summary>
         /// <param name="model">The default c# request model</param>
         /// <returns></returns>
-        public MoltinAddressBindingModel Create(IAddressBindingModel model) => new MoltinAddressBindingModel
+        public static MoltinAddressBindingModel Create(IAddressBindingModel model) => new MoltinAddressBindingModel
         {
             Id = model.Id,
             First_name = model.FirstName,

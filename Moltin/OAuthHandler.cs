@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using Moltin.Models;
+﻿using Moltin.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Runtime.Caching;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Moltin
 {
@@ -20,23 +21,37 @@ namespace Moltin
         DELETE
     }
 
+    public class AsyncLazy<T> : Lazy<Task<T>>
+    {
+        public AsyncLazy(Func<T> valueFactory) :
+            base(() => Task.Factory.StartNew(valueFactory))
+        {
+        }
+
+        public AsyncLazy(Func<Task<T>> taskFactory) :
+            base(() => Task.Factory.StartNew(taskFactory).Unwrap())
+        {
+        }
+    }
+
     public class OAuthHandler
     {
         // Private variables
         private readonly string _publicKey;
         private readonly string _secretKey;
-        private readonly ModelFactory _factory;
+        private readonly string _authUrl;
 
         /// <summary>
         ///     Handles authencated calls made to the Moltin API.
         /// </summary>
         /// <param name="publicKey">Your public key.</param>
         /// <param name="secretKey">Your secret key.</param>
-        public OAuthHandler(string publicKey, string secretKey)
+        /// <param name="authUrl"></param>
+        public OAuthHandler(string publicKey, string secretKey, string authUrl = "https://api.molt.in/oauth/access_token")
         {
             _publicKey = publicKey;
             _secretKey = secretKey;
-            _factory = new ModelFactory();
+            _authUrl = authUrl;
 
             // Configure our JSON output globally
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
@@ -49,86 +64,34 @@ namespace Moltin
         }
 
         /// <summary>
-        ///     Get the access token.
-        /// </summary>
-        /// <param name="url">The authorization url.</param>
-        /// <returns></returns>
-        public async Task<string> GetAccessTokenAsync(string url)
-        {
-            // Create our pairs
-            var pairs = new Dictionary<string, string>
-            {
-                {"grant_type", "client_credentials"},
-                {"client_id", _publicKey},
-                {"client_secret", _secretKey}
-            };
-
-            // Encode our content
-            var data = new FormUrlEncodedContent(pairs);
-
-            // Using the HttpClient
-            using (var client = new HttpClient())
-            {
-                // Set the security protocol
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-                try
-                {
-                    // Get our response
-                    var response = await client.PostAsync(url, data);
-
-                    // Return null if we have failed
-                    if (!response.IsSuccessStatusCode) return null;
-
-                    // Read our results
-                    var resultString = await response.Content.ReadAsStringAsync();
-
-                    // Get our resolve
-                    var jsonObject = JObject.Parse(resultString);
-
-                    // Return our result
-                    return jsonObject["access_token"].ToString();
-
-                    // Return null if we get this far
-                }
-                catch
-                {
-                    // Throw an error
-                    throw new Exception("Failed to get your access token");
-                }
-            }
-        }
-
-        /// <summary>
         ///     Query the API using GET HttpMethod.
         /// </summary>
-        /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
+        /// <param name="requiresAuthentication">Does the request require authentication, default: true</param>
         /// <returns></returns>
-        public async Task<JToken> QueryApiAsync(string accessToken, string url) => await QueryApiAsync(accessToken, url, HttpMethod.GET);
+        public async Task<JToken> QueryApiAsync(string url, bool requiresAuthentication = true) => 
+            await QueryApiAsync(url, HttpMethod.GET, requiresAuthentication);
 
         /// <summary>
         ///     Query the API without passing data.
         /// </summary>
-        /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <param name="method">The HttpMethod to use for the call.</param>
+        /// <param name="requiresAuthentication">Does the request require authentication, default: true</param>
         /// <returns></returns>
-        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method) => await QueryApiAsync(accessToken, url, method, null);
+        public async Task<JToken> QueryApiAsync(string url, HttpMethod method, bool requiresAuthentication = true) => 
+            await QueryApiAsync(url, method, null, requiresAuthentication);
 
         /// <summary>
         ///     Query the API using the specified HttpMethod.
         /// </summary>
-        /// <param name="accessToken">The access token used to autenticate the request.</param>
         /// <param name="url">The path to the requested resource.</param>
         /// <param name="method">The HttpMethod to use for the call.</param>
         /// <param name="data">The data to be set to the API.</param>
+        /// <param name="requiresAuthentication">Does the request require authentication, default: true</param>
         /// <returns></returns>
-        public async Task<JToken> QueryApiAsync(string accessToken, string url, HttpMethod method, object data)
+        public async Task<JToken> QueryApiAsync(string url, HttpMethod method, object data, bool requiresAuthentication = true)
         {
-            // If we don't have a access token, throw an error
-            if (string.IsNullOrEmpty(accessToken)) throw new ArgumentNullException(nameof(accessToken));
-
             // If we don't have a URL, throw an error
             if (string.IsNullOrEmpty(url)) throw new ArgumentNullException(nameof(url));
 
@@ -138,8 +101,10 @@ namespace Moltin
             // Using a new WebClient
             using (var client = new HttpClient())
             {
-                // If we have an access token, apply it to our header
-                if (!string.IsNullOrEmpty(accessToken)) client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
+                if (requiresAuthentication) { 
+                    var accessToken = await GetAccessTokenAsync();
+                    client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
+                }
 
                 // Create our response
                 HttpResponseMessage response;
@@ -186,13 +151,67 @@ namespace Moltin
                 return await HandleResponse(response);
             }
         }
+        
+        private async Task<string> GetAccessTokenAsync() =>
+            await GetFromCache("AccessToken", async () => await GetAccessTokenAsync(_authUrl));
 
-        /// <summary>
-        ///     Used to handle any responses
-        /// </summary>
-        /// <param name="response">The HttpResponseMessage</param>
-        /// <returns>A JToken Object</returns>
-        private async Task<JToken> HandleResponse(HttpResponseMessage response)
+        private static async Task<string> GetFromCache(string key, Func<Task<string>> factory)
+        {
+            var cache = MemoryCache.Default;
+            var policy = new CacheItemPolicy { AbsoluteExpiration = DateTimeOffset.Now.AddMinutes(55) };
+            var newValue = new AsyncLazy<string>(factory);
+
+            if (cache.AddOrGetExisting(key, newValue, policy) is Lazy<string> value) return value.Value;
+            return await newValue.Value;
+        }
+
+        private async Task<string> GetAccessTokenAsync(string url)
+        {
+            // Create our pairs
+            var pairs = new Dictionary<string, string>
+            {
+                {"grant_type", "client_credentials"},
+                {"client_id", _publicKey},
+                {"client_secret", _secretKey}
+            };
+
+            // Encode our content
+            var data = new FormUrlEncodedContent(pairs);
+
+            // Using the HttpClient
+            using (var client = new HttpClient())
+            {
+                // Set the security protocol
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                try
+                {
+                    // Get our response
+                    var response = await client.PostAsync(url, data);
+
+                    // Return null if we have failed
+                    if (!response.IsSuccessStatusCode) return null;
+
+                    // Read our results
+                    var resultString = await response.Content.ReadAsStringAsync();
+
+                    // Get our resolve
+                    var jsonObject = JObject.Parse(resultString);
+
+                    // Return our result
+                    return jsonObject["access_token"].ToString();
+
+                    // Return null if we get this far
+                }
+                catch
+                {
+                    // Throw an error
+                    throw new Exception("Failed to get your access token");
+                }
+            }
+        }
+
+        private static async Task<JToken> HandleResponse(HttpResponseMessage response)
         {
             // Read our results
             var resultString = await response.Content.ReadAsStringAsync();
@@ -234,16 +253,11 @@ namespace Moltin
             // Throw an error
             throw new Exception(sb.ToString());
         }
-
-        /// <summary>
-        ///     Factorizes the data if neccessary, to match the expected definitions for moltin
-        /// </summary>
-        /// <param name="data">The object that has been sent to the API</param>
-        /// <returns></returns>
-        private object Factorize(object data)
+        
+        private static object Factorize(object data)
         {
             // If the data that has been sent is the checkout model
-            if (data is ICheckoutBindingModel model) return _factory.Create(model);
+            if (data is ICheckoutBindingModel model) return ModelFactory.Create(model);
 
             // Fallback, return the original object (can be null)
             return data;
