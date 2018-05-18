@@ -1,3 +1,5 @@
+⚠️This repo is not actively maintained. Please join the [moltin forum](https://forum.moltin.com) to discuss C# usage.
+
 # C# SDK Alpha
 
 * [Website](https://www.moltin.com)
